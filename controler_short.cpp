@@ -2,10 +2,9 @@
 #include <ESP8266WebServer.h>
 
 // Wi-Fi 設定
-const char* ssid = "Nicouole";       // 替換為您的 Wi-Fi 名稱
-const char* password = "12345678"; // 替換為您的 Wi-Fi 密碼
+const char* ssid = "YourWiFiSSID";       // 替換為您的 Wi-Fi 名稱
+const char* password = "YourWiFiPassword"; // 替換為您的 Wi-Fi 密碼
 
-// HTTP 伺服器埠號
 ESP8266WebServer server(80);
 
 // 馬達控制腳位
@@ -14,7 +13,6 @@ ESP8266WebServer server(80);
 #define RIGHT_FORWARD D5
 #define RIGHT_BACKWARD D6
 
-// 初始化設定
 void setup() {
   Serial.begin(115200);
 
@@ -28,7 +26,7 @@ void setup() {
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP());
 
-  // 設定 HTTP 路由
+  // HTTP 路由
   server.on("/", handleRoot);
   server.on("/forward", moveForward);
   server.on("/backward", moveBackward);
@@ -36,11 +34,10 @@ void setup() {
   server.on("/right", turnRight);
   server.on("/stop", stopMotors);
 
-  // 啟動 HTTP 伺服器
   server.begin();
   Serial.println("HTTP server started");
 
-  // 設定馬達控制腳位為輸出
+  // 初始化 GPIO
   pinMode(LEFT_FORWARD, OUTPUT);
   pinMode(LEFT_BACKWARD, OUTPUT);
   pinMode(RIGHT_FORWARD, OUTPUT);
@@ -50,12 +47,11 @@ void setup() {
   stopMotors();
 }
 
-// 主迴圈
 void loop() {
   server.handleClient();
 }
 
-// 處理首頁請求
+// 處理主頁介面
 void handleRoot() {
   String html = R"rawliteral(
     <!DOCTYPE html>
@@ -63,25 +59,68 @@ void handleRoot() {
     <head>
       <title>Car Control</title>
       <style>
-        body { font-family: Arial; text-align: center; margin-top: 50px; }
-        button { width: 100px; height: 50px; margin: 5px; font-size: 16px; }
+        body {
+          font-family: Arial;
+          text-align: center;
+          margin-top: 50px;
+        }
+        .button-container {
+          display: flex;
+          flex-direction: row;
+          justify-content: center;
+          align-items: center;
+        }
+        button {
+          width: 100px;
+          height: 50px;
+          margin: 10px;
+          font-size: 16px;
+        }
       </style>
     </head>
     <body>
       <h1>NodeMCU Car Control</h1>
-      <button onclick="location.href='/forward'">Forward</button><br>
-      <button onclick="location.href='/left'">Left</button>
-      <button onclick="location.href='/stop'">Stop</button>
-      <button onclick="location.href='/right'">Right</button><br>
-      <button onclick="location.href='/backward'">Backward</button>
+      <div class="button-container">
+        <button onclick="sendCommand('forward')">Forward</button>
+      </div>
+      <div class="button-container">
+        <button onclick="sendCommand('left')">Left</button>
+        <button onclick="sendCommand('stop')">Stop</button>
+        <button onclick="sendCommand('right')">Right</button>
+      </div>
+      <div class="button-container">
+        <button onclick="sendCommand('backward')">Backward</button>
+      </div>
+      <script>
+        function sendCommand(cmd) {
+          fetch('/' + cmd) // 使用 Fetch 發送 AJAX 請求
+            .then(response => {
+              if (!response.ok) {
+                throw new Error('Network response was not ok');
+              }
+              return response.text();
+            })
+            .then(data => console.log(data)) // 打印伺服器回應
+            .catch(error => console.error('Error:', error));
+        }
+      </script>
     </body>
     </html>
   )rawliteral";
   server.send(200, "text/html", html);
 }
 
-// 前進
+// 停止所有馬達的通用函式
+void stopAllMotors() {
+  digitalWrite(LEFT_FORWARD, LOW);
+  digitalWrite(LEFT_BACKWARD, LOW);
+  digitalWrite(RIGHT_FORWARD, LOW);
+  digitalWrite(RIGHT_BACKWARD, LOW);
+}
+
+// 馬達控制功能
 void moveForward() {
+  stopAllMotors(); // 先停止所有動作
   digitalWrite(LEFT_FORWARD, HIGH);
   digitalWrite(LEFT_BACKWARD, LOW);
   digitalWrite(RIGHT_FORWARD, HIGH);
@@ -89,8 +128,8 @@ void moveForward() {
   server.send(200, "text/plain", "Moving Forward");
 }
 
-// 後退
 void moveBackward() {
+  stopAllMotors(); // 先停止所有動作
   digitalWrite(LEFT_FORWARD, LOW);
   digitalWrite(LEFT_BACKWARD, HIGH);
   digitalWrite(RIGHT_FORWARD, LOW);
@@ -98,8 +137,8 @@ void moveBackward() {
   server.send(200, "text/plain", "Moving Backward");
 }
 
-// 左轉
 void turnLeft() {
+  stopAllMotors(); // 先停止所有動作
   digitalWrite(LEFT_FORWARD, LOW);
   digitalWrite(LEFT_BACKWARD, LOW);
   digitalWrite(RIGHT_FORWARD, HIGH);
@@ -107,8 +146,8 @@ void turnLeft() {
   server.send(200, "text/plain", "Turning Left");
 }
 
-// 右轉
 void turnRight() {
+  stopAllMotors(); // 先停止所有動作
   digitalWrite(LEFT_FORWARD, HIGH);
   digitalWrite(LEFT_BACKWARD, LOW);
   digitalWrite(RIGHT_FORWARD, LOW);
@@ -116,11 +155,7 @@ void turnRight() {
   server.send(200, "text/plain", "Turning Right");
 }
 
-// 停止
 void stopMotors() {
-  digitalWrite(LEFT_FORWARD, LOW);
-  digitalWrite(LEFT_BACKWARD, LOW);
-  digitalWrite(RIGHT_FORWARD, LOW);
-  digitalWrite(RIGHT_BACKWARD, LOW);
+  stopAllMotors(); // 停止所有動作
   server.send(200, "text/plain", "Stopped");
 }
